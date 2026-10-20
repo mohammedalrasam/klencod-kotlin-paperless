@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.paperlless.app"
+    namespace = "com.paperlless.paperlless"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.paperlless.app"
+        applicationId = "com.paperlless.paperless"
         minSdk = 23
         targetSdk = 34
         versionCode = 1
