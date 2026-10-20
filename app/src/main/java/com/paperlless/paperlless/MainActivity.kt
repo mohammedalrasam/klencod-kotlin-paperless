@@ -1,4 +1,6 @@
-package com.paperless.app
+@file:OptIn(ExperimentalMaterial3Api::class)
+
+package com.paperlless.paperlless
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -54,7 +56,9 @@ fun HomePlaceholder() {
         }
     ) { padding ->
         Box(
-            modifier = Modifier.fillMaxSize().padding(padding),
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
             contentAlignment = Alignment.Center
         ) {
             Text(
