@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:name=".PaperllessApp"
+        android:name=".PaperlessApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="Paperless"
@@ -13,21 +13,19 @@
         android:theme="@style/Theme.Paperless">
 
         <activity
-            android:name="com.paperlless.paperlless.MainActivity"
+            android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.Paperlless">
+            android:theme="@style/Theme.Paperless">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <!-- AdMob App ID (اختباري - استبدله لاحقًا) -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-3940256099942544~3347511713"/>
 
-        <!-- FileProvider لمشاركة ملفات PDF -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
