@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:name=".PaperlessApp"
+        android:name=".PaperllessApp"
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="Paperless"
@@ -13,9 +13,9 @@
         android:theme="@style/Theme.Paperless">
 
         <activity
-            android:name=".MainActivity"
+            android:name="com.paperlless.paperlless.MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.Paperless">
+            android:theme="@style/Theme.Paperlless">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
