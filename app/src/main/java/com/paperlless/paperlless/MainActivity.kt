@@ -20,6 +20,10 @@ import androidx.navigation.compose.rememberNavController
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // تهيئة AdMob (بديل عن PaperlessApp)
+        com.google.android.gms.ads.MobileAds.initialize(this) {}
+
         setContent {
             MaterialTheme(
                 colorScheme = lightColorScheme(
