@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.paperlless.paperlless"
+    namespace = "com.paperlless.paperless"
     compileSdk = 34
 
     defaultConfig {

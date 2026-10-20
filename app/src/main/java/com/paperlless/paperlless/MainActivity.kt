@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalMaterial3Api::class)
 
-package com.paperlless.paperlless
+package com.paperlless.paperless
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
