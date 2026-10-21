@@ -50,7 +50,6 @@ android {
 
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.06.00")
-    val documents by viewModel.documents.collectAsState()
     implementation(composeBom)
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
