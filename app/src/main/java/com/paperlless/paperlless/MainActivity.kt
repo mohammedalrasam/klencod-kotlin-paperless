@@ -21,7 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.collectAsState
 import com.paperlless.paperless.data.Document
 import com.paperlless.paperless.data.DocumentViewModel
 import java.text.SimpleDateFormat
@@ -57,7 +57,7 @@ fun PaperlessTheme(content: @Composable () -> Unit) {
 
 @Composable
 fun HomeScreen(viewModel: DocumentViewModel) {
-    val documents by viewModel.documents.collectAsStateWithLifecycle()
+    val documents by viewModel.documents.collectAsState()
 
     Scaffold(
         topBar = {
