@@ -3,6 +3,8 @@
 package com.paperlless.paperless
 
 import android.app.Activity
+import android.content.ActivityNotFoundException
+import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.widget.Toast
@@ -11,22 +13,26 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import com.google.mlkit.vision.documentscanner.GmsDocumentScannerOptions
 import com.google.mlkit.vision.documentscanner.GmsDocumentScanning
@@ -54,9 +60,7 @@ class MainActivity : ComponentActivity() {
                 val scanResult = GmsDocumentScanningResult.fromActivityResultIntent(intent)
                 val pdfUri = scanResult?.pdf?.uri
                 if (pdfUri != null) {
-                    lifecycleScope.launch {
-                        saveScannedDocument(pdfUri)
-                    }
+                    lifecycleScope.launch { saveScannedDocument(pdfUri) }
                 }
             }
         }
@@ -69,7 +73,10 @@ class MainActivity : ComponentActivity() {
             PaperlessTheme {
                 HomeScreen(
                     viewModel = viewModel,
-                    onScanClick = { launchScanner() }
+                    onScanClick = { launchScanner() },
+                    onOpen = { doc -> openDocument(doc) },
+                    onShare = { doc -> shareDocument(doc) },
+                    onDelete = { doc -> confirmDelete(doc) }
                 )
             }
         }
@@ -83,20 +90,13 @@ class MainActivity : ComponentActivity() {
             .setResultFormats(GmsDocumentScannerOptions.RESULT_FORMAT_PDF)
             .build()
 
-        val scanner = GmsDocumentScanning.getClient(options)
-
-        scanner.getStartScanIntent(this)
+        GmsDocumentScanning.getClient(options)
+            .getStartScanIntent(this)
             .addOnSuccessListener { intentSender ->
-                scannerLauncher.launch(
-                    IntentSenderRequest.Builder(intentSender).build()
-                )
+                scannerLauncher.launch(IntentSenderRequest.Builder(intentSender).build())
             }
             .addOnFailureListener { e ->
-                Toast.makeText(
-                    this,
-                    "فشل فتح الماسح: ${e.message}",
-                    Toast.LENGTH_LONG
-                ).show()
+                Toast.makeText(this, "فشل فتح الماسح: ${e.message}", Toast.LENGTH_LONG).show()
             }
     }
 
@@ -105,40 +105,75 @@ class MainActivity : ComponentActivity() {
             val savedFile = withContext(Dispatchers.IO) {
                 val docsDir = File(filesDir, "scanned_docs")
                 if (!docsDir.exists()) docsDir.mkdirs()
-
-                val timestamp = System.currentTimeMillis()
-                val outputFile = File(docsDir, "scan_$timestamp.pdf")
-
+                val outputFile = File(docsDir, "scan_${System.currentTimeMillis()}.pdf")
                 contentResolver.openInputStream(uri)?.use { input ->
-                    outputFile.outputStream().use { output ->
-                        input.copyTo(output)
-                    }
-                } ?: throw IllegalStateException("تعذر فتح الملف الممسوح")
-
+                    outputFile.outputStream().use { output -> input.copyTo(output) }
+                } ?: throw IllegalStateException("تعذر فتح الملف")
                 outputFile
             }
 
             val now = System.currentTimeMillis()
-            val document = Document(
-                name = "مستند ${formatDate(now)}",
-                filePath = savedFile.absolutePath,
-                createdAt = now
+            viewModel.addDocument(
+                Document(
+                    name = "مستند ${formatDate(now)}",
+                    filePath = savedFile.absolutePath,
+                    createdAt = now
+                )
             )
-
-            viewModel.addDocument(document)
-
-            Toast.makeText(
-                this,
-                "✅ تم حفظ المستند بنجاح",
-                Toast.LENGTH_SHORT
-            ).show()
+            Toast.makeText(this, "✅ تم حفظ المستند", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
-            Toast.makeText(
-                this,
-                "خطأ في الحفظ: ${e.message}",
-                Toast.LENGTH_LONG
-            ).show()
+            Toast.makeText(this, "خطأ: ${e.message}", Toast.LENGTH_LONG).show()
         }
+    }
+
+    private fun openDocument(document: Document) {
+        val file = File(document.filePath)
+        if (!file.exists()) {
+            Toast.makeText(this, "الملف غير موجود", Toast.LENGTH_SHORT).show()
+            return
+        }
+        try {
+            val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/pdf")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(this, "لا يوجد تطبيق لعرض PDF", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun shareDocument(document: Document) {
+        val file = File(document.filePath)
+        if (!file.exists()) {
+            Toast.makeText(this, "الملف غير موجود", Toast.LENGTH_SHORT).show()
+            return
+        }
+        val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "application/pdf"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        startActivity(Intent.createChooser(intent, "مشاركة المستند"))
+    }
+
+    private fun confirmDelete(document: Document) {
+        android.app.AlertDialog.Builder(this)
+            .setTitle("حذف المستند")
+            .setMessage("هل تريد حذف \"${document.name}\"؟")
+            .setPositiveButton("حذف") { _, _ ->
+                lifecycleScope.launch {
+                    withContext(Dispatchers.IO) {
+                        File(document.filePath).takeIf { it.exists() }?.delete()
+                    }
+                    viewModel.deleteDocument(document)
+                    Toast.makeText(this@MainActivity, "تم الحذف", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("إلغاء", null)
+            .show()
     }
 }
 
@@ -157,7 +192,10 @@ fun PaperlessTheme(content: @Composable () -> Unit) {
 @Composable
 fun HomeScreen(
     viewModel: DocumentViewModel,
-    onScanClick: () -> Unit
+    onScanClick: () -> Unit,
+    onOpen: (Document) -> Unit,
+    onShare: (Document) -> Unit,
+    onDelete: (Document) -> Unit
 ) {
     val documents by viewModel.documents.collectAsState()
 
@@ -182,61 +220,53 @@ fun HomeScreen(
         if (documents.isEmpty()) {
             EmptyState(modifier = Modifier.padding(padding))
         } else {
-            DocumentList(
-                documents = documents,
-                modifier = Modifier.padding(padding)
-            )
+            LazyColumn(
+                modifier = Modifier.padding(padding).fillMaxSize(),
+                contentPadding = PaddingValues(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(documents, key = { it.id }) { doc ->
+                    DocumentCard(
+                        document = doc,
+                        onOpen = { onOpen(doc) },
+                        onShare = { onShare(doc) },
+                        onDelete = { onDelete(doc) }
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
 fun EmptyState(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
+    Box(modifier = modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Icon(
-                Icons.Default.Description,
-                contentDescription = null,
+                Icons.Default.Description, null,
                 modifier = Modifier.size(100.dp),
                 tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
             )
-            Text(
-                "لا توجد مستندات بعد",
-                fontSize = 18.sp,
-                style = MaterialTheme.typography.titleMedium
-            )
-            Text(
-                "اضغط زر + لبدء أول مستند",
-                fontSize = 14.sp,
-                color = Color.Gray
-            )
+            Text("لا توجد مستندات بعد", fontSize = 18.sp, style = MaterialTheme.typography.titleMedium)
+            Text("اضغط زر + لبدء أول مستند", fontSize = 14.sp, color = Color.Gray)
         }
     }
 }
 
 @Composable
-fun DocumentList(documents: List<Document>, modifier: Modifier = Modifier) {
-    LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(documents, key = { it.id }) { doc ->
-            DocumentCard(doc)
-        }
-    }
-}
+fun DocumentCard(
+    document: Document,
+    onOpen: () -> Unit,
+    onShare: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
 
-@Composable
-fun DocumentCard(document: Document) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onOpen),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -246,29 +276,41 @@ fun DocumentCard(document: Document) {
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Icon(
-                Icons.Default.Description,
-                contentDescription = null,
+                Icons.Default.Description, null,
                 modifier = Modifier.size(36.dp),
                 tint = Color(0xFFE53935)
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    document.name,
-                    fontSize = 16.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    document.name, fontSize = 16.sp,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
-                Text(
-                    formatDate(document.createdAt),
-                    fontSize = 12.sp,
-                    color = Color.Gray
-                )
+                Text(formatDate(document.createdAt), fontSize = 12.sp, color = Color.Gray)
+            }
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(Icons.Default.MoreVert, contentDescription = "خيارات", tint = Color.Gray)
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("مشاركة") },
+                        onClick = { menuExpanded = false; onShare() },
+                        leadingIcon = { Icon(Icons.Default.Share, null) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("حذف", color = Color.Red) },
+                        onClick = { menuExpanded = false; onDelete() },
+                        leadingIcon = { Icon(Icons.Default.Delete, null, tint = Color.Red) }
+                    )
+                }
             }
         }
     }
 }
 
 private fun formatDate(timestamp: Long): String {
-    val sdf = SimpleDateFormat("yyyy-MM-dd – HH:mm", Locale.getDefault())
-    return sdf.format(Date(timestamp))
+    return SimpleDateFormat("yyyy-MM-dd – HH:mm", Locale.getDefault()).format(Date(timestamp))
 }
